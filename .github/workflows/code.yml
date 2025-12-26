@@ -22,22 +22,27 @@ jobs:
             pip install -r requirements.txt || true
           fi
 
-      - name: Run Snyk SCA (no-block) + force SARIF
+      - name: Run Snyk SCA (no-block) + create SARIF
+        id: snyk_scan
         run: |
           echo "Running Snyk scan..."
-          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || echo "Snyk failed but continuing"
+          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || true
 
-          # If SARIF was not created, create an empty valid file
-          if [ ! -f snyk-sca.sarif ]; then
-            echo "Creating fallback SARIF file"
-            echo '{ "version":"2.1.0","runs":[] }' > snyk-sca.sarif
+          # Determine whether SARIF contains real results
+          if grep -q '"runs": \[\]' snyk-sca.sarif; then
+            echo "No findings detected — skipping SARIF upload"
+            echo "has_results=false" >> $GITHUB_OUTPUT
+          else
+            echo "Findings detected — will upload SARIF"
+            echo "has_results=true" >> $GITHUB_OUTPUT
           fi
 
-          ls -lh snyk-sca.sarif
+          ls -lh snyk-sca.sarif || true
         env:
           SNYK_TOKEN: c80a2012-bb87-4482-beb5-399c664f183d
 
-      - name: Upload SARIF
+      - name: Upload SARIF to GitHub
+        if: steps.snyk_scan.outputs.has_results == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-sca.sarif
