@@ -14,11 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install Snyk CLI (correct action)
+      # Correct Snyk Action
       - uses: snyk/actions/setup@v4
 
-      # (Optional) install Python deps so Snyk can resolve packages
-      - name: Install dependencies
+      - name: Optional – install Python deps
         run: |
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt || true
