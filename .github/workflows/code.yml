@@ -1,0 +1,34 @@
+name: Snyk Code Scan (SAST - No Block)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  snyk-code:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Snyk
+        uses: snyk/actions/setup@v4
+
+      - name: Run Snyk Code Scan (No Block)
+        run: |
+          snyk code test \
+            --sarif-file-output=snyk-code.sarif \
+            || true
+
+          ls -lh snyk-code.sarif || true
+        env:
+          SNYK_TOKEN: c80a2012-bb87-4482-beb5-399c664f183d
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-code.sarif
