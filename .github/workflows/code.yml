@@ -1,11 +1,11 @@
-name: Snyk SCA – No Block
+name: Snyk Code SAST – No Block
 
 on:
   push:
   pull_request:
 
 jobs:
-  snyk-sca:
+  snyk-code:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -14,35 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Install Snyk CLI (stable)
       - uses: snyk/actions/setup@master
 
-      - name: Install dependencies (optional)
+      - name: Run Snyk Code (SAST) — no block
+        id: snyk_code_scan
         run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt || true
-          fi
+          echo "Running Snyk Code scan..."
+          snyk code test --sarif-file-output=snyk-code.sarif || true
 
-      - name: Run Snyk SCA (no-block) + create SARIF
-        id: snyk_scan
-        run: |
-          echo "Running Snyk scan..."
-          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || true
-
-          # Determine whether SARIF contains real results
-          if grep -q '"runs": \[\]' snyk-sca.sarif; then
-            echo "No findings detected — skipping SARIF upload"
+          # Check if SARIF has results
+          if grep -q '"runs": \[\]' snyk-code.sarif; then
+            echo "No SAST findings — skipping SARIF upload"
             echo "has_results=false" >> $GITHUB_OUTPUT
           else
-            echo "Findings detected — will upload SARIF"
+            echo "SAST findings detected — uploading SARIF"
             echo "has_results=true" >> $GITHUB_OUTPUT
           fi
 
-          ls -lh snyk-sca.sarif || true
+          ls -lh snyk-code.sarif || true
         env:
-          SNYK_TOKEN: c80a2012-bb87-4482-beb5-399c664f183d
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload SARIF to GitHub
-        if: steps.snyk_scan.outputs.has_results == 'true'
+      - name: Upload SARIF to GitHub Code Scanning
+        if: steps.snyk_code_scan.outputs.has_results == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: snyk-sca.sarif
+          sarif_file: snyk-code.sarif
